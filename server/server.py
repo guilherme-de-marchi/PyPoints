@@ -8,13 +8,22 @@ class Server(socket.socket):
 
         super().__init__(socket.AF_INET, socket.SOCK_STREAM)
         self.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self.listen(self.max_connections)
 
         self.address, self.max_connections = address, max_connections
+        self.commands_list = {
+            'help': self.help_command
+        }
 
     def start(self):
+        tools.debug_print(self.address)
         self.bind(self.address)
+        self.listen(self.max_connections)
 
     def stop(self):
         self.shutdown()
         self.close()
+
+    def help_command(self) -> str:
+        return '''
+        I'm helping you   : )
+        '''

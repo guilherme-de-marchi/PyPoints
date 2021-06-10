@@ -1,12 +1,14 @@
 import server
+import threading
+import tools
 
 my_server = server.Server(
-    ('localhost', 8888),
+    ('', 8282),
     5,
 )
 
 my_server.start()
 
 while True:
-    client, client_address = my_server.accept()
-    
+    client, *_ = my_server.accept()
+    threading.Thread(target=tools.talk_with_client, args=(client, my_server.commands_list,)).start()
