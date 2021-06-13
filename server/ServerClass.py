@@ -20,7 +20,7 @@ class Server(socket.socket):
     def start(self):
         tools.debug_print(self.address)
 
-        self.logged_clients = []
+        self.logged_clients = {}
 
         self.bind(self.address)
         self.listen(self.max_connections)
@@ -29,6 +29,14 @@ class Server(socket.socket):
         self.shutdown()
         self.close()
 
+    def send_data(self, message: str, targets: tuple):
+        tools.assert_type(message, str)
+        tools.assert_type(targets, tuple)
+        tools.for_each(targets, lambda item: tools.assert_type(item, ClientClass.Client))
+
+        message = message.encode()
+        tools.for_each(targets, lambda client: client.socket.send(message))
+
     def talk_with(self, client_socket):
         client = ClientClass.NotLoggedClient(client_socket, self.commands_list)
         tools.debug_print(f'New connection from -> {client.socket}')
@@ -36,6 +44,7 @@ class Server(socket.socket):
         while True:
             received_data = client.socket.recv(1024).decode()
             tools.debug_print(f'Data received from -> {client.socket} :: {received_data}')
+            received_data = received_data[:-2] + ' ' #Formating !fix this!
 
             current_command = received_data.split(' ', 1)
             current_command = {
@@ -43,22 +52,25 @@ class Server(socket.socket):
                 'args': current_command[1].split(' '),
             }
             
+            tools.debug_print(current_command)
+            
             if client.verify_command_access(current_command['name']):
                 self.commands_list[current_command['name']](client, *current_command['args'])
 
     def ping_command(self, client, *args):
-        message = 'Pong'.encode()
-        client.socket.send(message)
+        self.send_data('Pong', (client,))
 
     def list_command(self, client, *args):
-        message = f'{self.logged_clients}'.encode()
-        client.socket.send(message)
+        self.send_data(f'{self.logged_clients}', (client,))
 
     def register_command(self, client, *args):
         name = args[0]
 
-        if name not in self.logged_clients:
-            self.logged_clients.append(name)
+        if name in self.logged_clients.keys():
+            self.send_data('This name is already playing!', (client,))
+            return
+        
+        client.change_class(ClientClass.LoggedClient)
+        self.logged_clients[name] = client
 
-        message = 'Registered with success!'.encode()
-        client.socket.send(message)
+        self.send_data('Registered!', (client,))
